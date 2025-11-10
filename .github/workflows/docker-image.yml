@@ -48,8 +48,8 @@ jobs:
 
       - name: 5. Push Docker Image to ECR
         run: |
-          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
-          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+          docker push ${{ env.ECR_REGISTRY }}:${{ env.IMAGE_TAG }}
+          
       
       # --- EKS Deployment ---
       # FIX: Using azure/setup-kubectl (a generic tool installer) to install kubectl
