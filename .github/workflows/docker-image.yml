@@ -40,16 +40,16 @@ jobs:
         id: login-ecr
 
       # --- Docker Build and Push ---
-      - name: 4. Build and Tag Docker Image
+            - name: 4. Build and Tag Docker Image
         run: |
           # Full URI: <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/<REPO_NAME>:<TAG>
-          docker build -t ${{ env.ECR_REGISTRY }}:${{ env.IMAGE_TAG }} .
+          docker build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} .
           docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
 
       - name: 5. Push Docker Image to ECR
         run: |
-          docker push ${{ env.ECR_REGISTRY }}:${{ env.IMAGE_TAG }}
-          
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
       
       # --- EKS Deployment ---
       # FIX: Using azure/setup-kubectl (a generic tool installer) to install kubectl
