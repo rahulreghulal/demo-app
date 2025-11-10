@@ -39,7 +39,7 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
         id: login-ecr
 
-      # --- Docker Build and Push ---
+      # --- Docker Build and Push --
             - name: 4. Build and Tag Docker Image
         run: |
           # Full URI: <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/<REPO_NAME>:<TAG>
