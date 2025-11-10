@@ -17,7 +17,7 @@ env:
   EKS_CLUSTER: Production
   
   # Ensure The registry URL is correctly constructed
-  ECR_REGISTRY: 455021422274.dkr.ecr.ap-south-1.amazonaws.com/ishan
+  ECR_REGISTRY: 455021422274.dkr.ecr.ap-south-1.amazonaws.com
   IMAGE_TAG: ${{ github.sha }}
 
 jobs:
