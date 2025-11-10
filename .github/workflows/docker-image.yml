@@ -1,18 +1,81 @@
-name: Docker Image CI
+name: Node.js ECR/EKS Deployment (OIDC)
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  id-token: write # Request the OIDC JWT token
+  contents: read  # Allow checkout of code
+
+env:
+  AWS_REGION: ap-south-1
+  AWS_ACCOUNT_ID: 457271242919
+  ECR_REPOSITORY: arrepocicd
+  EKS_CLUSTER: ar_cluster
+  
+  # Ensure The registry URL is correctly constructed
+  ECR_REGISTRY: 457271242919.dkr.ecr.ap-south-1.amazonaws.com 
+  IMAGE_TAG: ${{ github.sha }}
 
 jobs:
-
-  build:
-
+  build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v4
-    - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+      - name: 1. Checkout Code
+        uses: actions/checkout@v4
+
+      # --- AWS/ECR Authentication (OIDC) ---
+      - name: 2. Configure AWS Credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # This secret must hold the ARN of the IAM Role configured for OIDC
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: 3. Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+        id: login-ecr
+
+      # --- Docker Build and Push ---
+      - name: 4. Build and Tag Docker Image
+        run: |
+          # Full URI: <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/<REPO_NAME>:<TAG>
+          docker build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} .
+          docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+
+      - name: 5. Push Docker Image to ECR
+        run: |
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+      
+      # --- EKS Deployment ---
+      # FIX: Using azure/setup-kubectl (a generic tool installer) to install kubectl
+      - name: 6. Install Kubectl (Prerequisite for EKS Deploy)
+        uses: azure/setup-kubectl@v4 
+        with:
+          version: 'v1.28.0' # Specify a recent stable version to ensure compatibility
+
+      # This step is correct and handles EKS authentication via the AWS CLI
+      - name: 7. Configure Kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig \
+            --name ${{ env.EKS_CLUSTER }} \
+            --region ${{ env.AWS_REGION }}
+
+      - name: 8. Deploy to EKS (kubectl apply)
+        run: |
+          K8S_FILE="k8s/deployment.yaml"
+          FULL_ECR_URI="${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}"
+          
+          # Replace the placeholder values in k8s/deployment.yaml using the safe '|' delimiter
+          sed "s|<ECR_REPOSITORY_URI>|${FULL_ECR_URI}|g" $K8S_FILE | \
+          sed "s|<IMAGE_TAG>|${{ env.IMAGE_TAG }}|g" - > updated_deployment.yaml
+          
+          # Apply the updated Kubernetes manifest
+          kubectl apply -f updated_deployment.yaml
+          
+          # Wait for the deployment to finish rolling out
+          kubectl rollout status deployment/nodejs-app-deployment --timeout=5m
