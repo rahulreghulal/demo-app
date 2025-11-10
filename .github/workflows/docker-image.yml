@@ -13,12 +13,12 @@ permissions:
 env:
   AWS_REGION: ap-south-1
   AWS_ACCOUNT_ID: 455021422274
-  ECR_REPOSITORY: 455021422274.dkr.ecr.ap-south-1.amazonaws.com/ishan
+  ECR_REPOSITORY: ishan
   EKS_CLUSTER: Production
   
   # Ensure The registry URL is correctly constructed
-  ECR_REGISTRY: 455021422274.dkr.ecr.ap-south-1.amazonaws.com/ishan 
-  IMAGE_TAG: latest
+  ECR_REGISTRY: 455021422274.dkr.ecr.ap-south-1.amazonaws.com/ishan
+  IMAGE_TAG: ${{ github.sha }}
 
 jobs:
   build-and-deploy:
@@ -39,8 +39,8 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
         id: login-ecr
 
-      # --- Docker Build and Push --
-            - name: 4. Build and Tag Docker Image
+      # --- Docker Build and Push ---
+      - name: 4. Build and Tag Docker Image
         run: |
           # Full URI: <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/<REPO_NAME>:<TAG>
           docker build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} .
